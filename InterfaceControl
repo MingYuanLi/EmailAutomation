@@ -1,0 +1,91 @@
+Option Compare Database
+
+'The following section generates table for email groups
+Public Sub GenerateEmailGroup()
+    Dim db As DAO.Database, userInput
+    Set db = CurrentDb
+    userInput = InputBox("Please insert table name", "Table Name")
+    On Error Resume Next
+    If Not userInput = "" Then
+        userInput = "Email" & userInput
+        db.Execute ("CREATE TABLE " & userInput _
+        & "(Subject TEXT, To TEXT, Cc TEXT, Bcc TEXT, Body TEXT, Attach TEXT);")
+    End If
+    Set db = Nothing
+End Sub
+
+'The following section opens lower level form for users to select email table
+Public Sub ManageEmailGroup()
+    Dim db As DAO.Database, rs As DAO.TableDef, checkExist As Boolean, msg 'Declare variables and assign values
+    Set db = CurrentDb
+    checkExist = False
+    On Error Resume Next 'Check run time error
+    For Each rs In db.TableDefs 'Go through each table in database
+        If Left(rs.Name, 5) = "Email" Then 'If table name start with 'Email', open low level email operation form
+            DoCmd.OpenForm ("ManageEmailGroup")
+            checkExist = True 'Set checkExist for true as email group exists
+            Call getUserInput(True) 'Set values to ComboBox list
+            Exit For
+        End If
+    Next
+    If Not checkExist Then 'If there is no email group created, prompt user
+        msg = MsgBox("There is no email group created")
+    End If
+    Set rs = Nothing
+    Set db = Nothing
+End Sub
+
+'The following section delete the group email that the user would like to delete
+Public Sub DeleteEmailGroup()
+    Dim db As DAO.Database, rs As DAO.TableDef, checkExist As Boolean, userInput, msg 'Declare variables and assign values
+    Set db = CurrentDb
+    checkExist = False
+    userInput = InputBox("Please insert table name. Make sure all tables are closed, Table Name")
+    On Error Resume Next 'Check run time error
+    For Each rs In db.TableDefs 'Go through each table in the database
+        If rs.Name = userInput Then 'If any table matches with userInput, then drop the table
+            db.Execute ("DROP TABLE " & userInput)
+            checkExist = True
+            Exit For
+        End If
+    Next
+    If Not checkExist Then  'If there is not table matched, prompt the user
+        msg = MsgBox("There no email group matched")
+    End If
+    Set rs = Nothing
+    Set db = Nothing
+End Sub
+
+'The following section get table names for combox as input to list
+Public Function getUserInput(addOrRemove As Boolean)
+    Forms![ManageEmailGroup]!userInput.Visible = True
+    Dim db As DAO.Database, tdf As DAO.TableDef
+    Set db = CurrentDb
+    For Each tdf In db.TableDefs
+        If Left(tdf.Name, 5) = "Email" Then
+            If addOrRemove Then
+                Forms![ManageEmailGroup]!userInput.AddItem (tdf.Name)
+            Else
+                Forms![ManageEmailGroup]!userInput.RemoveItem (tdf.Name)
+            End If
+        End If
+    Next
+    Set tdf = Nothing
+    Set db = Nothing
+End Function
+
+'The following section allow users to have function variety with email content
+Public Sub FunctionVariety()
+    If IsNull(Forms![MainForm]!inputVariety) Then
+        msg = MsgBox("Please choose type to be automated")
+    Else
+        If Forms![MainForm]!inputVariety.Value = "TEXT" Then
+            DoCmd.OpenTable ("TextVariety")
+        ElseIf Forms![MainForm]!inputVariety.Value = "DATE" Then
+            DoCmd.OpenTable ("DateVariety")
+        ElseIf Forms![MainForm]!inputVariety.Value = "NUMBER" Then
+            DoCmd.OpenTable ("NumberVariety")
+        End If
+    End If
+End Sub
+
