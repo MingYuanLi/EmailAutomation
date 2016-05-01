@@ -1,0 +1,107 @@
+Option Compare Database
+'The following procedure run email group by selected user table
+Public Sub RunEmailGroup()
+    Dim db As DAO.Database, rs As Recordset, msg 'Declare variables and assign values
+    Set db = CurrentDb
+    On Error Resume Next
+    If IsNull(Forms![ManageEmailGroup]!userInput) Then 'Check if userInput is null. If yes, prompt user
+        msg = MsgBox("Please select email group name")
+    Else
+        Set rs = db.OpenRecordset(Forms![ManageEmailGroup]!userInput.Value) 'If not, open selected email group
+        If rs.EOF Then 'Check if table empty. If yes, prompt user
+            msg = MsgBox("There is no record in the table")
+        Else
+            rs.MoveFirst
+            Do Until rs.EOF 'Go through all the email item in email group
+                rs.Edit
+                '********************Automate Function Variety*************
+                Dim meSubject, meBody, meTo, meCc, meBcc, meAttach As String
+                meSubject = CalculateFunctionVarietyText(rs!Subject)
+                meBody = CalculateFunctionVarietyText(rs!Body)
+                meTo = CalculateFunctionVarietyText(rs!To)
+                meCc = CalculateFunctionVarietyText(rs!CC)
+                meBcc = CalculateFunctionVarietyText(rs!BCC)
+                meAttach = CalculateFunctionVarietyText(rs!Attach)
+                '**********************************************************
+                
+                '********************Send Using Gmail**********************
+                Set cdomsg = CreateObject("CDO.message") 'Set CDO message
+                With cdomsg.Configuration.Fields 'Update configuration fields
+                    .Item("http://schemas.microsoft.com/cdo/configuration/sendusing") = 2
+                    .Item("http://schemas.microsoft.com/cdo/configuration/smtpserver") = "smtp.gmail.com"
+                    .Item("http://schemas.microsoft.com/cdo/configuration/smptserverport") = 587
+                    .Item("http://schemas.microsoft.com/cdo/configuration/smtpauthenticate") = 1
+                    .Item("http://schemas.microsoft.com/cdo/configuration/smtpusessl") = True
+                    .Item("http://schemas.microsoft.com/cdo/configuration/smtpconnectiontimeout") = 60
+                    .Item("http://schemas.microsoft.com/cdo/configuration/sendusername") = "bjteana@gmail.com"
+                    .Item("http://schemas.microsoft.com/cdo/configuration/sendpassword") = "Tina1995+"
+                    .Update
+                End With
+                With cdomsg 'Create email message
+                    .From = "bjteana@gmail.com"
+                    .To = rs!To
+                    .Subject = meSubject
+                    .TextBody = meBody
+                    .CC = rs!CC
+                    .BCC = rs!BCC
+                    .AddAttachment meAttach
+                    .Send
+                End With
+                Set cdomsg = Nothing
+                '******************End of Gmail Send*********************
+                rs.MoveNext
+            Loop
+            msg = MsgBox("All emails in " & rs.Name & " have been sent", vbOKOnly)
+        End If
+    End If
+    Set rd = Nothing
+    Set db = Nothing
+End Sub
+
+'************************************************Text Variety************************************************
+'The following function will calculated userInput through TextVariety, DateVariety and NumberVariety algorithm
+Public Function CalculateFunctionVarietyText(inputValue As String) As String
+    Dim db As DAO.Database, rsText As DAO.Recordset, rsDate As DAO.Recordset, userInput As String, i As Integer  'Declare variables and assign values
+    Set db = CurrentDb
+    Set rsText = db.OpenRecordset("TextVariety")
+    userInput = inputValue
+    i = 1
+    If Not rsText.EOF Then 'If text variety has record, go through all the record with userInput
+        rsText.MoveFirst
+        Do Until rsText.EOF 'Go through entire TextVariety table records
+            rsText.Edit
+            Do While i < Len(userInput) 'Go through userInput string
+                If Mid(userInput, i, Len(rsText!FunctionName)) = rsText!FunctionName Then 'If any matches with function name, do algorithm
+                    If i = 1 Then 'If just start, do not add begin
+                        userInput = rsText!ActualInput + Mid(userInput, Len(rsText!ActualInput) - 3, Len(userInput))
+                    Else
+                        userInput = Mid(userInput, 1, i - 1) + rsText!ActualInput + Mid(userInput, Len(rsText!ActualInput) - 1, Len(userInput))
+                    End If
+                End If
+                i = i + 1
+            Loop
+            i = 1
+            rsText.MoveNext
+        Loop
+    End If
+    Set rsText = Nothing
+    Set db = Nothing
+    CalculateFunctionVarietyText = userInput
+End Function
+
+'The following section go into email group table that user creates
+Public Sub EditEmailGroup()
+    If IsNull(Forms![ManageEmailGroup]!userInput) Then 'If user inputs nothing, prompt user
+        msg = MsgBox("Please select email group name")
+    Else
+        DoCmd.OpenTable (Forms![ManageEmailGroup]!userInput.Value) 'If userINput selected, open table
+    End If
+End Sub
+
+'The following section will back allow user to open main form
+Public Sub BackMainForm()
+    DoCmd.OpenForm ("MainForm") 'Open MainForm
+    getUserInput (False) 'Clear list for ComboBox
+End Sub
+
+
